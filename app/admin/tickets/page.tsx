@@ -39,45 +39,54 @@ export default function AdminTickets() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // 1. Fetch clients to map IDs to company names
-    const fetchClientes = async () => {
-      try {
-        const token = await auth.currentUser?.getIdToken();
-        const res = await fetch('/api/clientes', {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-        if (res.ok) {
-          const list = await res.json();
-          const mapped: Record<string, Cliente> = {};
-          list.forEach((c: any) => {
-            mapped[c.id] = c;
-          });
-          setClientes(mapped);
-        }
-      } catch (err) {
-        console.error('Error fetching clients for tickets:', err);
-      }
-    };
+    let unsubscribeTickets: (() => void) | undefined;
 
-    // 2. Subscribe to all tickets in real-time
-    const q = query(collection(firestore, 'tickets'), orderBy('creadoEn', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Ticket[] = [];
-      snapshot.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() } as Ticket);
+    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+      if (!user) return;
+
+      // 1. Fetch clients to map IDs to company names
+      const fetchClientes = async () => {
+        try {
+          const token = await user.getIdToken();
+          const res = await fetch('/api/clientes', {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (res.ok) {
+            const list = await res.json();
+            const mapped: Record<string, Cliente> = {};
+            list.forEach((c: any) => {
+              mapped[c.id] = c;
+            });
+            setClientes(mapped);
+          }
+        } catch (err) {
+          console.error('Error fetching clients for tickets:', err);
+        }
+      };
+
+      // 2. Subscribe to all tickets in real-time
+      const q = query(collection(firestore, 'tickets'), orderBy('creadoEn', 'desc'));
+      unsubscribeTickets = onSnapshot(q, (snapshot) => {
+        const list: Ticket[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() } as Ticket);
+        });
+        setTickets(list);
+        setLoading(false);
+      }, (err) => {
+        console.error(err);
+        setLoading(false);
       });
-      setTickets(list);
-      setLoading(false);
-    }, (err) => {
-      console.error(err);
-      setLoading(false);
+
+      fetchClientes();
     });
 
-    fetchClientes();
-
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeTickets) unsubscribeTickets();
+    };
   }, []);
 
   // Fetch job title if associated with a work

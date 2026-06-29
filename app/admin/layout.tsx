@@ -54,6 +54,12 @@ export default async function AdminLayout({
             >
               <span>Mensajes</span>
             </Link>
+            <Link
+              href="/admin/usuarios"
+              className="flex items-center space-x-3 px-4 py-2.5 rounded-sm hover:bg-border transition duration-200"
+            >
+              <span>Usuarios</span>
+            </Link>
           </nav>
         </div>
 
