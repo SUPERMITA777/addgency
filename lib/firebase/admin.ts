@@ -8,7 +8,22 @@ function getFirebaseApp(): App {
     return getApp();
   }
 
-  // Strategy 1: Full service account JSON (most reliable on Vercel)
+  // Strategy 1: Base64-encoded service account JSON (most reliable on Vercel)
+  const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+  if (serviceAccountBase64) {
+    try {
+      const decoded = Buffer.from(serviceAccountBase64, 'base64').toString('utf-8');
+      const serviceAccount = JSON.parse(decoded);
+      return initializeApp({
+        credential: cert(serviceAccount),
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      });
+    } catch (error) {
+      console.warn('Failed to parse FIREBASE_SERVICE_ACCOUNT_BASE64:', error);
+    }
+  }
+
+  // Strategy 2: Raw JSON service account (alternative)
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (serviceAccountJson) {
     try {
@@ -22,7 +37,7 @@ function getFirebaseApp(): App {
     }
   }
 
-  // Strategy 2: Individual env vars (works locally with .env.local)
+  // Strategy 3: Individual env vars (works locally with .env.local)
   const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
@@ -44,7 +59,7 @@ function getFirebaseApp(): App {
     }
   }
 
-  // Fallback for build-time static analysis (no credentials available)
+  // Fallback for build-time static analysis
   console.warn('Firebase Admin: No valid credentials found, using build-time fallback.');
   return initializeApp({
     projectId: projectId || 'build-fallback',
