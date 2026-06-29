@@ -32,6 +32,63 @@ export default function AdminUsuarios() {
   });
   const [saving, setSaving] = useState(false);
 
+  // New user creation state
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    nombre: '',
+    email: '',
+    password: '',
+    rol: 'cliente' as 'admin' | 'cliente',
+    clienteId: '',
+  });
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    setError('');
+
+    try {
+      const token = await auth.currentUser?.getIdToken();
+
+      if (createForm.rol === 'cliente' && !createForm.clienteId) {
+        throw new Error('Debes seleccionar un cliente para este usuario');
+      }
+
+      const res = await fetch('/api/usuarios', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(createForm),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Error al crear el usuario');
+      }
+
+      const resData = await res.json();
+
+      // Add newly created user at the top
+      setUsuarios((prev) => [resData.user, ...prev]);
+      setCreateForm({
+        nombre: '',
+        email: '',
+        password: '',
+        rol: 'cliente',
+        clienteId: '',
+      });
+      setShowCreateForm(false);
+    } catch (err: any) {
+      console.error('Error creating user:', err);
+      setError(err.message || 'Error al crear el nuevo usuario');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -135,7 +192,101 @@ export default function AdminUsuarios() {
           <h3 className="text-xl font-serif text-accent">Administración de Usuarios</h3>
           <p className="text-xs text-muted">Gestiona el rango de acceso y la asignación a inquilinos de cada usuario.</p>
         </div>
+        <Button
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          variant="secondary"
+          className="text-xs uppercase tracking-wider px-4 py-2 h-auto"
+        >
+          {showCreateForm ? 'Cancelar' : 'Crear Usuario'}
+        </Button>
       </div>
+
+      {showCreateForm && (
+        <form onSubmit={handleCreateUser} className="bg-surface border border-border p-6 rounded-sm space-y-4 max-w-lg transition-all duration-300">
+          <h4 className="text-sm uppercase tracking-widest font-mono text-accent">Registrar Nuevo Usuario</h4>
+          
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className="block text-[10px] uppercase font-mono tracking-wider text-muted mb-1">Nombre Completo</label>
+              <input
+                type="text"
+                required
+                className="w-full bg-bg border border-border text-xs px-3 py-2 text-text rounded-sm focus:border-accent outline-none font-sans"
+                placeholder="Juan Pérez"
+                value={createForm.nombre}
+                onChange={(e) => setCreateForm(prev => ({ ...prev, nombre: e.target.value }))}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-[10px] uppercase font-mono tracking-wider text-muted mb-1">Email</label>
+              <input
+                type="email"
+                required
+                className="w-full bg-bg border border-border text-xs px-3 py-2 text-text rounded-sm focus:border-accent outline-none font-sans"
+                placeholder="juan@ejemplo.com"
+                value={createForm.email}
+                onChange={(e) => setCreateForm(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-mono tracking-wider text-muted mb-1">Contraseña</label>
+              <input
+                type="password"
+                required
+                className="w-full bg-bg border border-border text-xs px-3 py-2 text-text rounded-sm focus:border-accent outline-none font-sans"
+                placeholder="••••••••"
+                value={createForm.password}
+                onChange={(e) => setCreateForm(prev => ({ ...prev, password: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] uppercase font-mono tracking-wider text-muted mb-1">Rol / Rango</label>
+                <select
+                  className="w-full bg-bg border border-border text-xs px-3 py-2 text-text rounded-sm focus:border-accent outline-none font-sans"
+                  value={createForm.rol}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, rol: e.target.value as 'admin' | 'cliente' }))}
+                >
+                  <option value="cliente">Cliente</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+
+              {createForm.rol === 'cliente' && (
+                <div>
+                  <label className="block text-[10px] uppercase font-mono tracking-wider text-muted mb-1">Asignar Cliente</label>
+                  <select
+                    required
+                    className="w-full bg-bg border border-border text-xs px-3 py-2 text-text rounded-sm focus:border-accent outline-none font-sans"
+                    value={createForm.clienteId}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, clienteId: e.target.value }))}
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {clientes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.empresa} ({c.nombre})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              type="submit"
+              disabled={creating}
+              className="text-xs uppercase tracking-wider px-4 py-2 h-auto"
+            >
+              {creating ? 'Creando...' : 'Crear Usuario'}
+            </Button>
+          </div>
+        </form>
+      )}
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 text-red-500 text-xs p-4 rounded-[2px] font-mono">

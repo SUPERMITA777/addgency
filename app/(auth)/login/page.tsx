@@ -35,6 +35,9 @@ export default function LoginPage() {
         throw new Error('No se pudo verificar el rol del usuario.');
       }
 
+      // Force client SDK to refresh ID token claims now that they are synced on the server
+      await userCredential.user.getIdToken(true);
+
       const session = await response.json();
 
       if (session.rol === 'admin') {
