@@ -88,10 +88,6 @@ export default function PublicLanding() {
       <footer className="max-w-7xl mx-auto w-full text-center border-t border-border/40 pt-6 text-[10px] text-muted font-mono uppercase tracking-wider flex flex-col sm:flex-row justify-between gap-4">
         <div>&copy; {new Date().getFullYear()} ADDGENCY. Todos los derechos reservados.</div>
         <div className="flex justify-center space-x-6">
-          <a href="https://github.com/SUPERMITA777/addgency" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition duration-200">
-            GitHub Repo
-          </a>
-          <span>&bull;</span>
           <Link href="/login" className="hover:text-accent transition duration-200">
             Client Portal
           </Link>

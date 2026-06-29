@@ -7,19 +7,24 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Helper: Gets the user document data from the 'usuarios' collection
+    // Helper: Checks if the user profile document exists in firestore
+    function hasProfile() {
+      return isAuth() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+    
+    // Helper: Gets the user document data safely
     function getUserData() {
       return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
     }
     
     // Helper: Checks if the authenticated user has an 'admin' role
     function isAdmin() {
-      return isAuth() && getUserData().rol == 'admin';
+      return hasProfile() && getUserData().rol == 'admin';
     }
 
     // Helper: Checks if the authenticated user belongs to the specified tenant/client
     function isTenantClient(clienteId) {
-      return isAuth() && getUserData().rol == 'cliente' && getUserData().clienteId == clienteId;
+      return hasProfile() && getUserData().rol == 'cliente' && getUserData().clienteId == clienteId;
     }
 
     // /clientes/{clienteId}
