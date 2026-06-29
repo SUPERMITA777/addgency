@@ -87,8 +87,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Error al subir el trabajo' }, { status: 500 });
   }
 }
-export const config = {
-  api: {
-    bodyParser: false, // Disables standard body parsing since we handle form-data
-  },
-};
