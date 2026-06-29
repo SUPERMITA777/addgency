@@ -5,19 +5,28 @@ import { getStorage } from 'firebase-admin/storage';
 
 let app: App;
 
-// Ensure singleton instance
-if (getApps().length === 0) {
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
-  const formattedPrivateKey = privateKey ? privateKey.replace(/\\n/g, '\n') : undefined;
+const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
 
-  app = initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey: formattedPrivateKey,
-    }),
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  });
+// Ensure singleton instance and prevent build failures when env variables are not yet loaded in Vercel
+if (getApps().length === 0) {
+  if (privateKey && clientEmail && projectId) {
+    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+    app = initializeApp({
+      credential: cert({
+        projectId,
+        clientEmail,
+        privateKey: formattedPrivateKey,
+      }),
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    });
+  } else {
+    // Fallback for Next.js build-time static analysis
+    app = initializeApp({
+      projectId: projectId || 'mock-project',
+    });
+  }
 } else {
   app = getApp();
 }
