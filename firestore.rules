@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper: Checks if the user is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    // Helper: Gets the user document data from the 'usuarios' collection
+    function getUserData() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+    
+    // Helper: Checks if the authenticated user has an 'admin' role
+    function isAdmin() {
+      return isAuth() && getUserData().rol == 'admin';
+    }
+
+    // Helper: Checks if the authenticated user belongs to the specified tenant/client
+    function isTenantClient(clienteId) {
+      return isAuth() && getUserData().rol == 'cliente' && getUserData().clienteId == clienteId;
+    }
+
+    // /clientes/{clienteId}
+    match /clientes/{clienteId} {
+      allow read: if isAdmin() || isTenantClient(clienteId);
+      allow write: if isAdmin();
+    }
+
+    // /trabajos/{trabajoId}
+    match /trabajos/{trabajoId} {
+      allow read: if isAdmin() || (isAuth() && isTenantClient(resource.data.clienteId));
+      allow write: if isAdmin();
+    }
+
+    // /tickets/{ticketId}
+    match /tickets/{ticketId} {
+      allow read: if isAdmin() || (isAuth() && isTenantClient(resource.data.clienteId));
+      allow create: if isAdmin() || (isAuth() && isTenantClient(request.resource.data.clienteId));
+      allow update: if isAdmin() || (isAuth() && isTenantClient(resource.data.clienteId) && isTenantClient(request.resource.data.clienteId));
+      allow delete: if isAdmin();
+    }
+
+    // /mensajes/{mensajeId}
+    match /mensajes/{mensajeId} {
+      allow read: if isAdmin() || (isAuth() && isTenantClient(resource.data.clienteId));
+      allow create: if isAdmin() || (isAuth() && isTenantClient(request.resource.data.clienteId));
+      allow update: if isAdmin() || (isAuth() && isTenantClient(resource.data.clienteId) && isTenantClient(request.resource.data.clienteId));
+      allow delete: if isAdmin();
+    }
+
+    // /usuarios/{uid}
+    match /usuarios/{uid} {
+      allow read: if isAdmin() || (isAuth() && request.auth.uid == uid);
+      allow write: if isAdmin() || (isAuth() && request.auth.uid == uid);
+    }
+  }
+}

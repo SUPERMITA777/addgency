@@ -1,0 +1,36 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper: Checks if the user is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Helper: Gets the user record from firestore to check credentials
+    function getUserData() {
+      return firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    // Helper: Checks if the authenticated user has an 'admin' role
+    function isAdmin() {
+      return isAuth() && getUserData().rol == 'admin';
+    }
+
+    // Helper: Checks if the authenticated user belongs to the specified tenant/client
+    function isTenantClient(clienteId) {
+      return isAuth() && getUserData().rol == 'cliente' && getUserData().clienteId == clienteId;
+    }
+
+    // trabajos: Direct client access is denied to prevent downloading unwatermarked original assets.
+    // Only the Admin (or the server via Admin SDK) can read or write directly to this folder.
+    match /trabajos/{clienteId}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // mensajes: Allows clients to download or upload chat attachments belonging to their own tenant conversation.
+    match /mensajes/{clienteId}/{allPaths=**} {
+      allow read, write: if isAdmin() || isTenantClient(clienteId);
+    }
+  }
+}
