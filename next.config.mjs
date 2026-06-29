@@ -5,8 +5,8 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    // Externalize firebase-admin to prevent webpack bundling issues on Vercel
-    serverComponentsExternalPackages: ['firebase-admin'],
+    // Externalize firebase-admin and its sub-dependencies to prevent webpack bundling issues on Vercel
+    serverComponentsExternalPackages: ['firebase-admin', 'jwks-rsa', 'jose'],
   },
 };
 
