@@ -60,8 +60,14 @@ export default function AdminDashboard() {
     }
 
     // Load stats only when user is authenticated
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
+        try {
+          // Force refresh token to pull latest custom claims (rol: 'admin')
+          await user.getIdToken(true);
+        } catch (e) {
+          console.warn('Failed to force refresh token:', e);
+        }
         loadStats();
       }
     });

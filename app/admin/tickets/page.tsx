@@ -41,8 +41,14 @@ export default function AdminTickets() {
   useEffect(() => {
     let unsubscribeTickets: (() => void) | undefined;
 
-    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if (!user) return;
+
+      try {
+        await user.getIdToken(true);
+      } catch (e) {
+        console.warn('Failed to force refresh token:', e);
+      }
 
       // 1. Fetch clients to map IDs to company names
       const fetchClientes = async () => {

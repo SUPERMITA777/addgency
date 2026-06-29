@@ -64,8 +64,13 @@ export default function AdminUsuarios() {
   };
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
+        try {
+          await user.getIdToken(true);
+        } catch (e) {
+          console.warn('Failed to force refresh token:', e);
+        }
         fetchData();
       } else {
         setLoading(false);
