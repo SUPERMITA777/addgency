@@ -20,6 +20,14 @@ export async function POST(request: NextRequest) {
     const rol = userData?.rol || 'cliente';
     const clienteId = userData?.clienteId || null;
 
+    // Self-healing Custom Claims sync on login/session creation
+    if (decodedToken.rol !== rol || decodedToken.clienteId !== clienteId) {
+      await adminAuth.setCustomUserClaims(decodedToken.uid, {
+        rol,
+        clienteId: clienteId || '',
+      });
+    }
+
     const response = NextResponse.json({
       uid: decodedToken.uid,
       rol,
