@@ -86,26 +86,33 @@ export default function AdminUsuarios() {
     setSaving(true);
     setError('');
     try {
-      const userRef = doc(firestore, 'usuarios', uid);
-      const updateData: Partial<UserProfile> = {
+      const token = await auth.currentUser?.getIdToken();
+      const payload = {
         rol: editForm.rol,
+        clienteId: editForm.rol === 'cliente' ? editForm.clienteId : '',
       };
 
-      if (editForm.rol === 'cliente') {
-        if (!editForm.clienteId) {
-          throw new Error('Debes seleccionar un cliente para este usuario');
-        }
-        updateData.clienteId = editForm.clienteId;
-      } else {
-        // Remove client association if role is admin
-        updateData.clienteId = '';
+      if (editForm.rol === 'cliente' && !editForm.clienteId) {
+        throw new Error('Debes seleccionar un cliente para este usuario');
       }
 
-      await updateDoc(userRef, updateData);
+      const res = await fetch(`/api/usuarios/${uid}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Error al actualizar el rol en el servidor');
+      }
 
       // Update local state
       setUsuarios((prev) =>
-        prev.map((u) => (u.uid === uid ? { ...u, ...updateData } : u))
+        prev.map((u) => (u.uid === uid ? { ...u, ...payload } : u))
       );
       setEditingUid(null);
     } catch (err: any) {

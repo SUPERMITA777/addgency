@@ -7,14 +7,14 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Helper: Checks if the user profile document exists in firestore
+    // Helper: Checks if the user profile document exists in firestore using (default) database
     function hasProfile() {
-      return isAuth() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+      return isAuth() && exists(/databases/(default)/documents/usuarios/$(request.auth.uid));
     }
     
-    // Helper: Gets the user document data safely
+    // Helper: Gets the user document data safely using (default) database
     function getUserData() {
-      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+      return get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data;
     }
     
     // Helper: Checks if the authenticated user has an 'admin' role
