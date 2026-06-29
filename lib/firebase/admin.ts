@@ -3,19 +3,35 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 
-let app: App;
+function getFirebaseApp(): App {
+  if (getApps().length > 0) {
+    return getApp();
+  }
 
-const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
-const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+  // Strategy 1: Full service account JSON (most reliable on Vercel)
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (serviceAccountJson) {
+    try {
+      const serviceAccount = JSON.parse(serviceAccountJson);
+      return initializeApp({
+        credential: cert(serviceAccount),
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      });
+    } catch (error) {
+      console.warn('Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:', error);
+    }
+  }
 
-// Ensure singleton instance and prevent build failures when env variables are not yet loaded or invalid
-if (getApps().length === 0) {
+  // Strategy 2: Individual env vars (works locally with .env.local)
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
+
   if (privateKey && clientEmail && projectId) {
     try {
       const cleanedKey = privateKey.replace(/^"|"$/g, '');
       const formattedPrivateKey = cleanedKey.replace(/\\n/g, '\n');
-      app = initializeApp({
+      return initializeApp({
         credential: cert({
           projectId,
           clientEmail,
@@ -24,20 +40,18 @@ if (getApps().length === 0) {
         storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
       });
     } catch (error) {
-      console.warn('Failed to initialize Firebase Admin with credentials, using build fallback:', error);
-      app = initializeApp({
-        projectId: projectId || 'mock-project',
-      });
+      console.warn('Failed to init Firebase Admin with individual env vars:', error);
     }
-  } else {
-    // Fallback for Next.js build-time static analysis
-    app = initializeApp({
-      projectId: projectId || 'mock-project',
-    });
   }
-} else {
-  app = getApp();
+
+  // Fallback for build-time static analysis (no credentials available)
+  console.warn('Firebase Admin: No valid credentials found, using build-time fallback.');
+  return initializeApp({
+    projectId: projectId || 'build-fallback',
+  });
 }
+
+const app = getFirebaseApp();
 
 export const adminAuth = getAuth(app);
 export const adminFirestore = getFirestore(app);
