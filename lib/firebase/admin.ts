@@ -13,7 +13,8 @@ const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
 if (getApps().length === 0) {
   if (privateKey && clientEmail && projectId) {
     try {
-      const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+      const cleanedKey = privateKey.replace(/^"|"$/g, '');
+      const formattedPrivateKey = cleanedKey.replace(/\\n/g, '\n');
       app = initializeApp({
         credential: cert({
           projectId,
