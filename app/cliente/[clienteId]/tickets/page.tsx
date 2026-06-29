@@ -44,14 +44,19 @@ export default function ClienteTickets() {
     // 1. Subscribe to tickets real-time updates
     const q = query(
       collection(firestore, 'tickets'),
-      where('clienteId', '==', clienteId),
-      orderBy('creadoEn', 'desc')
+      where('clienteId', '==', clienteId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: Ticket[] = [];
       snapshot.forEach((doc) => {
         list.push({ id: doc.id, ...doc.data() } as Ticket);
+      });
+      // Sort in memory to avoid composite index requirement
+      list.sort((a, b) => {
+        const aTime = a.creadoEn?.toMillis ? a.creadoEn.toMillis() : 0;
+        const bTime = b.creadoEn?.toMillis ? b.creadoEn.toMillis() : 0;
+        return bTime - aTime;
       });
       setTickets(list);
       setLoading(false);

@@ -25,11 +25,18 @@ export async function GET(request: NextRequest) {
       query = query.where('clienteId', '==', user.clienteId);
     }
 
-    const snapshot = await query.orderBy('creadoEn', 'desc').get();
+    const snapshot = await query.get();
     const tickets = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
+
+    // Sort in memory to avoid index requirements
+    tickets.sort((a: any, b: any) => {
+      const aTime = a.creadoEn?.toMillis ? a.creadoEn.toMillis() : 0;
+      const bTime = b.creadoEn?.toMillis ? b.creadoEn.toMillis() : 0;
+      return bTime - aTime;
+    });
 
     return NextResponse.json(tickets);
   } catch (error) {

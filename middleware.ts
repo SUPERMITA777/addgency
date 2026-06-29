@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
-  const hostname = request.headers.get('host') || '';
 
   // Exclude static assets, Next.js internals, and files (favicon, logos, etc.)
   if (
@@ -13,68 +12,58 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow check-subdomain API route without interception, but intercept other API paths if needed
+  // Allow check-subdomain API route without interception
   if (url.pathname.startsWith('/api/clientes/check-subdomain')) {
     return NextResponse.next();
   }
 
-  const mainDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'tuagencia.com';
-  let subdomain = '';
-
-  // Extract subdomain from hostname
-  if (hostname.includes(mainDomain)) {
-    const part = hostname.replace(mainDomain, '').replace(/:[0-9]+$/, '').trim();
-    if (part.endsWith('.')) {
-      subdomain = part.slice(0, -1);
-    }
-  } else if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-    const parts = hostname.replace(/:[0-9]+$/, '').split('.');
-    if (parts.length > 1) {
-      subdomain = parts[0];
-    }
-  }
-
-  // If no subdomain, or if it is 'www' or 'admin', it is the root domain
-  if (!subdomain || subdomain === 'www' || subdomain === 'admin') {
-    // Prevent direct access to /cliente/[clienteId] or general /cliente paths on the root domain
-    if (url.pathname.startsWith('/cliente')) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+  // Parse path segments
+  const pathSegments = url.pathname.split('/').filter(Boolean);
+  
+  // If there are no segments, it's the home page
+  if (pathSegments.length === 0) {
     return NextResponse.next();
   }
 
-  // Prevent subdomains from accessing admin paths
-  if (url.pathname.startsWith('/admin')) {
-    return NextResponse.redirect(new URL('/', request.url));
+  const firstSegment = pathSegments[0].toLowerCase();
+
+  // Exclude system paths from tenant routing
+  const reservedPaths = ['login', 'admin', 'api'];
+  if (reservedPaths.includes(firstSegment)) {
+    return NextResponse.next();
   }
 
-  // It's a client subdomain, fetch details from our check endpoint
+  // Prevent direct access to /cliente/[clienteId] or general /cliente paths
+  if (firstSegment === 'cliente') {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // It's a potential tenant path (e.g. /nombredeltenant/...)
+  // Check if this tenant exists using our verification API
   try {
     const origin = url.origin;
-    const checkUrl = `${origin}/api/clientes/check-subdomain?subdomain=${subdomain}`;
+    const checkUrl = `${origin}/api/clientes/check-subdomain?subdomain=${firstSegment}`;
     const res = await fetch(checkUrl);
 
     if (res.ok) {
       const data = await res.json();
       if (data.exists && data.clienteId) {
-        // Rewrite the request internally to /cliente/[clienteId]/...
-        // For example: /trabajos -> /cliente/[clienteId]/trabajos
-        const path = url.pathname === '/' ? '' : url.pathname;
-        url.pathname = `/cliente/${data.clienteId}${path}`;
+        // Rewrite /nombredeltenant/path -> /cliente/[clienteId]/path internally
+        const remainingPath = pathSegments.slice(1).join('/');
+        url.pathname = `/cliente/${data.clienteId}${remainingPath ? '/' + remainingPath : ''}`;
         return NextResponse.rewrite(url);
       }
     }
   } catch (err) {
-    console.error('Subdomain middleware lookup error:', err);
+    console.error('Tenant path middleware lookup error:', err);
   }
 
-  // Subdomain does not exist, redirect to root landing
+  // Tenant does not exist, redirect to root landing
   return NextResponse.redirect(new URL('/', request.url));
 }
 
 export const config = {
   matcher: [
-    // Apply middleware to all routes except static assets
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

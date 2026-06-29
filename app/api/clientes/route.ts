@@ -14,13 +14,19 @@ export async function GET(request: NextRequest) {
     const snapshot = await adminFirestore
       .collection('clientes')
       .where('activo', '==', true)
-      .orderBy('creadoEn', 'desc')
       .get();
 
     const clientes = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
+
+    // Sort in memory to avoid Firestore composite index requirement
+    clientes.sort((a: any, b: any) => {
+      const aTime = a.creadoEn?.toMillis ? a.creadoEn.toMillis() : 0;
+      const bTime = b.creadoEn?.toMillis ? b.creadoEn.toMillis() : 0;
+      return bTime - aTime;
+    });
 
     return NextResponse.json(clientes);
   } catch (error) {
